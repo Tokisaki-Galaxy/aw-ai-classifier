@@ -1,7 +1,7 @@
 import requests
 import json
 import re
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from config import AW_API_BASE, SETTINGS_PATH
 
 def get_window_bucket_id():
@@ -32,12 +32,10 @@ def get_uncategorized_activities(limit_hours=2):
                 "regex": cls["rule"]["regex"],
                 "ignore_case": cls["rule"].get("ignore_case", False)
             })
-    print(f"Loaded {len(classes)} classification rules.")
-    print(f"{classes}")
 
     # 2. 设置时间范围 (UTC)
-    time_end = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
-    time_start = (datetime.utcnow() - timedelta(hours=limit_hours)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    time_end = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    time_start = (datetime.now(timezone.utc) - timedelta(hours=limit_hours)).strftime("%Y-%m-%dT%H:%M:%SZ")
     
     # 3. 只获取原始事件，不让服务器分类（服务器分类不准）
     query = f"RETURN = query_bucket('{bucket_id}');"
@@ -52,14 +50,19 @@ def get_uncategorized_activities(limit_hours=2):
             return {}
 
         all_events = resp.json()[0]
-        unique_apps = {}
+        app_durations = {} # {app: total_seconds}
+        app_titles = {}    # {app: last_title}
 
         # 4. 在 Python 本地进行模拟匹配
         for event in all_events:
+            duration = event.get("duration", 0)
             data = event.get("data", {})
             app = data.get("app", "")
             title = data.get("title", "")
             
+            if not app or app.lower() == "unknown":
+                continue
+
             # 拼接用于匹配的文本（模拟 AW 行为：匹配 app 或 title）
             content_to_match = f"{app} {title}"
             
@@ -71,19 +74,29 @@ def get_uncategorized_activities(limit_hours=2):
                     is_categorized = True
                     break
             
-            # 如果所有规则都没命中
+            # 如果所有规则都没命中，累计时长
             if not is_categorized:
-                if app and app.lower() != "unknown" and app not in unique_apps:
-                    unique_apps[app] = title
+                app_durations[app] = app_durations.get(app, 0) + duration
+                if app not in app_titles:
+                    app_titles[app] = title
         
-        return unique_apps
+        # 5. 过滤时长大于 15 分钟 (900 秒) 的活动
+        unique_apps = {}
+        for app, total_sec in app_durations.items():
+            if total_sec >= 900:
+                unique_apps[app] = app_titles[app]
+                print(f"发现高频未分类活动: {app}, 总时长: {int(total_sec/60)} 分钟")
+        
+        return classes, unique_apps
 
     except Exception as e:
         print(f"检测脚本运行异常: {e}")
         return {}
 
 if __name__ == "__main__":
-    results = get_uncategorized_activities(limit_hours=24)
+    classes, results = get_uncategorized_activities(limit_hours=24)
+    print(f"Loaded {len(classes)} classification rules.")
+    print(f"{classes}")
     print(f"--- 正在检测过去 24 小时的未分类活动 (Python 本地匹配模式) ---")
     if results:
         for app, title in results.items():
