@@ -14,19 +14,20 @@ def batch_ask_ai_for_categories(activities, existing_categories):
     Analyze these desktop activities (App name and Window Title):
     {json.dumps(activities, ensure_ascii=False, indent=2)}
 
-    Task: For each App, choose the most fitting category from this list: [{cats_str}].
+    Task: For each App, choose the most fitting category from this list: [{cats_str}] and suggest a color.
     
     Rules:
     1. ALWAYS prefer an existing category from the list above if it fits.
     2. If you choose an existing category, return its FULL PATH exactly as shown (e.g., "Media > Games").
     3. If none of the existing categories fit perfectly, suggest a new short and descriptive category name.
     4. You can suggest hierarchical categories using " > " as a separator (e.g., "Work > Tools").
-    5. DO NOT use generic names like "Unknown Software", "Other", or "Uncategorized".
-    6. Suggested category names should be clean and human-readable. DO NOT include file extensions like ".exe" in the category name.
-    7. If you are absolutely unsure and cannot suggest a meaningful category, DO NOT include that App in the output.
+    5. Suggest a hex color code (e.g., "#FF5733") for the category. If it's an existing category, you can still suggest a color or use a standard one.
+    6. DO NOT use generic names like "Unknown Software", "Other", or "Uncategorized".
+    7. Suggested category names should be clean and human-readable. DO NOT include file extensions like ".exe" in the category name.
+    8. If you are absolutely unsure and cannot suggest a meaningful category, DO NOT include that App in the output.
 
-    Return ONLY a JSON object where keys are the App names and values are the suggested categories (as strings).
-    Example: {{"App1": "Media > Games", "App2": "Work > Programming"}}
+    Return ONLY a JSON object where keys are the App names and values are objects containing "category" and "color".
+    Example: {{"App1": {{"category": "Media > Games", "color": "#FF5733"}}, "App2": {{"category": "Work > Programming", "color": "#33FF57"}}}}
     """
 
     headers = {

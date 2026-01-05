@@ -23,9 +23,18 @@ def main():
         print("无法获取 AI 分类建议。")
         return
 
-    for app, suggested_cat in results.items():
-        print(f"AI 建议: {app} -> {suggested_cat}")
-        if update_aw_settings(suggested_cat, app):
+    for app, info in results.items():
+        # AI 现在返回 {"category": "...", "color": "..."}
+        if isinstance(info, dict):
+            suggested_cat = info.get('category')
+            suggested_color = info.get('color')
+        else:
+            # 兼容旧格式或异常情况
+            suggested_cat = info
+            suggested_color = None
+
+        print(f"AI 建议: {app} -> {suggested_cat} (颜色: {suggested_color})")
+        if update_aw_settings(suggested_cat, app, color=suggested_color):
             print(f"已成功将 {app} 归类到 {suggested_cat}")
         else:
             print(f"{app} 规则更新跳过（可能已存在）。")

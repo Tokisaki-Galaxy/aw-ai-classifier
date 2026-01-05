@@ -3,7 +3,7 @@ import re
 import os
 from config import SETTINGS_PATH
 
-def update_aw_settings(category_name, app_name):
+def update_aw_settings(category_name, app_name, color=None):
     if not os.path.exists(SETTINGS_PATH):
         print(f"错误：找不到配置文件 {SETTINGS_PATH}")
         return False
@@ -73,6 +73,12 @@ def update_aw_settings(category_name, app_name):
         # 确保规则类型正确
         target_class['rule']['type'] = 'regex'
         target_class['rule']['ignore_case'] = True
+        
+        # 如果提供了颜色，更新颜色
+        if color:
+            if 'data' not in target_class:
+                target_class['data'] = {}
+            target_class['data']['color'] = color
     else:
         # 3. 如果是新分类，创建它
         existing_ids = [c['id'] for c in settings.get('classes', [])]
@@ -86,7 +92,7 @@ def update_aw_settings(category_name, app_name):
                 "regex": app_pattern, 
                 "ignore_case": True 
             },
-            "data": {"color": "#999999"}
+            "data": {"color": color if color else "#999999"}
         }
         settings['classes'].append(new_class)
 
